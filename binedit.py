@@ -6,7 +6,7 @@ from firepro import *
 # display usage and exit
 def usage():
     print('binedit.py --input_1st 1ST.BIN --input_fps FPS.SBL --list_builtins')
-    print('binedit.py --input_1st 1ST.BIN --output_1st 1ST.BIN.edited --input_fps FPS.SBL --output_fps FPS.SBL--insert_builtin builtin_0.json')
+    print('binedit.py --input_1st 1ST.BIN --output_1st 1ST.BIN.edited --input_fps FPS.SBL --output_fps FPS.SBL.edited --insert_builtin builtin_0.json --builtin_slot 0')
 
     print('binedit.py --input_1st 1ST.BIN --list_promotions')
     print('binedit.py --input_1st 1ST.BIN --output_1st 1ST.BIN.edited --insert_promotions promotions.txt')
@@ -144,7 +144,11 @@ def builtinToBytes(parsed_edit):
 
     return edit
 
-def insert_builtin(inBuf, builtinFilename):
+def insert_builtin(inBuf, builtinFilename, builtinSlot):
+
+    if builtinSlot < 0 or builtinSlot > 159:
+        print("Invalid builtin_slot!! Must be 0-159")
+        sys.exit(-2)
 
     builtinFile = open(builtinFilename, "r")
     builtinBuf = builtinFile.read()
@@ -157,8 +161,18 @@ def insert_builtin(inBuf, builtinFilename):
     pos = BUILTIN_WRESTLER_OFFSET
 
     outBuf = inBuf[0:BUILTIN_WRESTLER_OFFSET]
-    outBuf += builtin
-    outBuf += inBuf[BUILTIN_WRESTLER_OFFSET + BUILTIN_WRESTLER_SIZE:]
+
+    # the actual edit
+    for i in range(0, NUM_BUILTIN_WRESTLERS):
+
+        if i == builtinSlot:
+            # this is the wrestler we are inserting
+            outBuf += builtin
+        else:
+            # not our slot, copy over the existing one
+            outBuf += inBuf[BUILTIN_WRESTLER_OFFSET + (i*BUILTIN_WRESTLER_SIZE):BUILTIN_WRESTLER_OFFSET + (i*BUILTIN_WRESTLER_SIZE) + BUILTIN_WRESTLER_SIZE]
+
+    outBuf += inBuf[BUILTIN_WRESTLER_OFFSET + (NUM_BUILTIN_WRESTLERS*BUILTIN_WRESTLER_SIZE):]
 
     return outBuf
 
@@ -612,6 +626,7 @@ def main(argv):
     outBinBuf = b''
     inFpsFile = b''
     inFpsBuf = b''
+    builtinSlot = None
 
     listPromotions = False
     insertPromotions = False
@@ -626,7 +641,7 @@ def main(argv):
     inBuiltinFile = ""
 
     try:
-      opts, args = getopt.getopt(argv,"hi:o:",["input_1st=","output_1st=", "input_fps=","output_fps=", "list_builtins", "list_promotions", "list_wrestlers", "insert_builtin=", "insert_promotions=", "insert_wrestlers="])
+      opts, args = getopt.getopt(argv,"hi:o:",["input_1st=","output_1st=", "input_fps=","output_fps=", "list_builtins", "list_promotions", "list_wrestlers", "insert_builtin=", "insert_promotions=", "insert_wrestlers=", "builtin_slot="])
     except getopt.GetoptError:
       usage()
 
@@ -646,6 +661,8 @@ def main(argv):
         elif opt in ("--insert_builtin"):
             insertBuiltin = True
             inBuiltinFile = arg
+        elif opt in ("--builtin_slot"):
+            builtinSlot = int(arg)
         elif opt in ("--list_promotions"):
             listPromotions = True
         elif opt in ("--insert_promotions"):
@@ -694,7 +711,7 @@ def main(argv):
         if len(outBinFile) == 0:
             usage()
 
-        inBinBuf = insert_builtin(inBinBuf, inBuiltinFile)
+        inBinBuf = insert_builtin(inBinBuf, inBuiltinFile, builtinSlot)
 
     if insertPromotions == True:
 
