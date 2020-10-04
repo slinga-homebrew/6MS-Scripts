@@ -1,0 +1,352 @@
+My rough notes on understanding the Fire Pro save game formats as well as how the builtin wresters are stored. The Python scripts should be considered the ground truth. 
+
+// 20,308 bytes
+struct FPS_internal_save{
+
+    char magic[8] // FPS_DATA on internal, FPS_EDIT on cart
+    unsigned char isCAWSlotUsed[16]; // if 1 the slot contains a CAW, if 0 the slot is free. 16 on internal memory, 64 on cart
+
+    CAW caw[16]; // array of created wrestlers
+
+    // 0x1f18 // start of promotions
+    PROMOTION_NAME promotions[14];
+
+    // 0x2110 0x37 bytes each
+    WRESTLER_NAME wrestlerNames[160];
+
+    // I don't quite understand the remainder of thes struct
+
+    // 0x4370 - 0x46cb
+    // fight records from options???
+
+    // 0x46cc
+    CHAMPION champions[5]; //
+
+    // 0x471c
+    // title belt history??
+
+    // 0x4f50
+    unsigned int checksum; // Sum of all the bytes in the save excluding the checksum
+}
+
+// 31,820 bytes
+// similar to the internal save except it only has created wrestlers
+struct FPS_cart_save{
+
+    char magic[8] // FPS_EDIT on cart
+    unsigned char isCAWSlotUsed[64]; // if 1 the slot contains a CAW, if 0 the slot is free. 16 on internal memory, 64 on cart
+
+    CAW caw[64]; // array of created wrestlers
+
+    // 0x7C48
+    unsigned int checksum; // Sum of all the bytes in the save excluding the checksum
+}
+
+
+// 0x10 bytes
+typedef struct _CHAMPION
+{
+    // not sure what this struct looks like at all
+    unsigned char champID?? // is this the person with the champsion
+}
+
+typedef struct _PROMOTION_NAME
+{
+    unsigned char fullName_sjis[24]; // last two are for NULL
+    unsigned char fullShort_sjis[12]; // last two are for NULL
+
+} PROMOTION_NAME, *PPROMOTION_NAME;
+
+// 0x37 bytes long
+typedef wrestlerName
+{
+    unsigned char flags?? // unknown flags field, maybe the name modifier field?
+    char last_name_sjis[12]; // 14 characters for last name in SJIS. Last two bytes are for NULL terminator??
+    char first_name_sjis[18]; // how can it be an odd number? likely overlapped with a zero-ed field Last two bytes are for NULL terminator??
+    char nickname[24];
+}
+
+// 0x1f0
+typedef struct _CAW
+{
+    unsigned char CHARACTER_weightClass; // 1 = hvy, 2 = jr hv, 3 = free
+    unsigned char RENAME_nameModifier; // high bit is to toggle first/last name
+                                       // low nibble is the seperator betwen the names
+                                       // 0 = space
+                                       // 1 = centered "."
+                                       // 2 = "="
+                                       // 3 = no space between first last names
+    char RENAME_last_name_sjis[14]; // 14 characters for last name in SJIS. Last two bytes are for NULL terminator??
+    char RENAME_first_name_sjis[20]; // how can it be an odd number? likely overlapped with a zero-ed field Last two bytes are for NULL terminator??
+    char RENAME_nickname[26]; // how can it be an odd number? likely overlapped with a zero-ed field Last two bytes are for NULL terminator??
+
+    // 0x3e
+    unsigned char CHARACTER_ht_in_cms;
+    unsigned char CHARACTER_wt_in_kgs;
+
+    // 0x40
+    unsigned char CHARACTER_origin; // 0-31
+    unsigned char CHARACTER_dob_year_since_1900;
+    unsigned char CHARACTER_dob_month;
+    unsigned char CHARACTER_dob_date;
+    unsigned char CHARACTER_promotion;
+    unsigned char CHARACTER_style;
+    unsigned char CHARACTER_def;
+    unsigned char CHARACTER_res;
+
+    // 0x48
+    unsigned char CHARACTER_res_cut;
+    unsigned char CHARACTER_air;
+    unsigned char CHARACTER_air_cut;
+    unsigned char CHARACTER_fcs;
+    unsigned char CHARACTER_fcs_cut;
+    unsigned char CHARACTER_neck;
+    unsigned char CHARACTER_arms;
+    unsigned char CHARACTER_waist;
+
+    // 0x50
+    unsigned char CHARACTER_legs;
+    unsigned char CHARACTER_move_speed;
+    unsigned char CHARACTER_ring_climb;
+    unsigned char CHARACTER_can_climb;
+    unsigned char CHARACTER_critical;
+    unsigned char CHARACTER_ring_return; // 0-20
+    unsigned char CHARACTER_teamwork; // 0-2
+    unsigned char CHARACTER_song;
+
+    // 0x58
+    unsigned char CHARACTER_voice1;
+    unsigned char CHARACTER_sound1;
+    unsigned char CHARACTER_voice2;
+    unsigned char CHARACTER_sound2;
+
+    //0x5c
+    unsigned char APPEARANCE_stance; // 0-8 strong - ko-budou(old budo)
+    unsigned char APPEARANCE_size; // 0-2 s, m, l
+
+    // 0x5e
+    unsigned char ATTRIBUTES_offense[10]; // starts at 3 not 0
+    unsigned char ATTRIBUTES_defense[10];
+
+    // 0x72 - 0xe2
+    MOVE ACT_moves[56]; array of wrestling moves structs. I don't believe this matches the order on the
+
+    // 0x72-e0 moves 56 moves, two bytes needed to store each move
+
+    // highest bit = sound2?
+    // 2nd highest = sound1??
+    // 3rd highest bit = finisher?
+    // 4th highest bit = speciality
+
+
+    // 0xe2 logic
+    // Each logic entry contains a variable length array
+    // the array of bytes is one less than the number of options
+    // the values are the additive sum of the percentages of the previous options
+    // this way the last byte doesn't need to be present (because it sums up to 100
+    // ex default for the first entry: 35% 15% 15% 15% 15% 5% 0%
+    // is stored as: 0x23 0x32 0x41 0x50 0x5f 0x64
+
+    unsigned char LOGIC_1[6];
+    unsigned char LOGIC_2[6];
+    unsigned char LOGIC_3[14];
+    unsigned char LOGIC_4[14];
+    unsigned char LOGIC_5[14];
+    unsigned char LOGIC_6[5];
+    unsigned char LOGIC_7[5];
+    unsigned char LOGIC_8[5];
+    unsigned char LOGIC_9[5];
+    unsigned char LOGIC_10[5];
+    unsigned char LOGIC_11[5];
+    unsigned char LOGIC_12[2];
+    unsigned char LOGIC_13[2];
+    unsigned char LOGIC_14[2];
+    unsigned char LOGIC_15[4];
+    unsigned char LOGIC_16[4];
+
+    // op lean on corner (weak)
+    unsigned char LOGIC_17[3];
+    unsigned char LOGIC_18[3];
+    unsigned char LOGIC_19[6];
+    unsigned char LOGIC_20[6];
+    unsigned char LOGIC_21[5];
+    unsigned char LOGIC_22[5];
+    unsigned char LOGIC_23[1];
+    unsigned char LOGIC_24[3];
+    unsigned char LOGIC_25[2];
+    unsigned char LOGIC_26[2];
+    unsigned char LOGIC_27[2];
+    unsigned char LOGIC_28[2];
+    unsigned char LOGIC_29[1];
+    unsigned char LOGIC_30[1];
+    unsigned char LOGIC_31[1];
+    unsigned char LOGIC_32[1];
+
+    0x170
+    // BUGBUG: why am I missing two bytes here???
+    // not sure what these two bytes are for
+    //the first byte always appears to be zero
+    //the second byte varies possibly related to number
+    //of unlock points available?
+    unsigned char unknown[2];
+
+    0x172
+    RGB FEATURE_colors[34]; 68 bytes of wrestler RGB values
+
+    0x1b6
+    unsigned char ACT_finisher_sjis[40];
+
+    0x1e1
+    unsigned char FEATURE_face; 0-0xCB
+
+    0x1e2
+    // BUGBUG don't understand this
+    unsigned char FEATURE_chest; // this has the size encoded as well, not sure how
+
+    0x1e3
+    unsigned char FEATURE_waist; // not sure how this is encoded
+
+    0x1e4
+    unsigned char FEATURE_upper_arm; // not sure how this is encoded
+
+    0x1e5
+    unsigned char FEATURE_lower_arm; // not sure how this is encoded
+
+    0x1e6
+    unsigned char FEATURE_knee; 0-25; bare legs - kuma
+
+    0x1e7
+    unsigned char FEATURE_thigh;  // not sure how this is encoded
+
+    0x1e8
+    unsigned char FEATURE_wrist; 0-2 bare hand - taping
+
+    0x1e9
+    unsigned char FEATURE_ankle; 0-14 bare-feet- kuma
+
+    // 0x1ea - 0x1f0 unused?? padding??
+}
+
+// 2 byte struct
+struct RGB{
+
+    unsigned char red:5;
+    unsigned char green:5;
+    unsigned char blue:5;
+    unsigned char unused:1;
+}
+
+RGB
+- There are 34 RGB values
+- each color takes 5 bits (0, 31)
+- with three calls that means 15 bits
+- it looks like each color attribute is stored in two bytes
+
+bit 15 is unused
+bits 10-14 are blue
+bits 5-9 are green
+bits 0-4 are red
+72 bytes of this
+
+// 0x1ac
+struct _PREBUILT_WRESTLER{
+
+    unsigned char CHARACTER_weightClass; // 1 = hvy, 2 = jr hv, 3 = free
+    unsigned char RENAME_nameModifier; // high bit is to toggle first/last name
+                                       // low nibble is the seperator betwen the names
+                                       // 0 = space
+                                       // 1 = centered "."
+                                       // 2 = "="
+                                       // 3 = no space between first last names
+    char RENAME_last_name[14]; // 14 characters for last name in SJIS. Last two bytes are for NULL terminator??
+    char RENAME_first_name[20]; // how can it be an odd number? likely overlapped with a zero-ed field Last two bytes are for NULL terminator??
+    char RENAME_nickname[26]; // how can it be an odd number? likely overlapped with a zero-ed field Last two bytes are for NULL terminator??
+
+    // 0x3a6be
+    // 0x3e
+    unsigned char CHARACTER_ht_in_cms;
+    unsigned char CHARACTER_wt_in_kgs;
+
+    // 0x40
+    unsigned char CHARACTER_origin; // 0-31
+    unsigned char CHARACTER_dob_year_since_1900;
+    unsigned char CHARACTER_dob_month;
+    unsigned char CHARACTER_dob_date;
+    unsigned char CHARACTER_promotion; // move to another promotion
+    unsigned char CHARACTER_style;
+    unsigned char CHARACTER_def;
+    unsigned char CHARACTER_res;
+
+    // 0x48
+    unsigned char CHARACTER_res_cut;
+    unsigned char CHARACTER_air;
+    unsigned char CHARACTER_air_cut;
+    unsigned char CHARACTER_fcs;
+    unsigned char CHARACTER_fcs_cut;
+    unsigned char CHARACTER_neck;
+    unsigned char CHARACTER_arms;
+    unsigned char CHARACTER_waist;
+
+    // 0x50
+    unsigned char CHARACTER_legs;
+    unsigned char CHARACTER_move_speed;
+    unsigned char CHARACTER_ring_climb;
+    unsigned char CHARACTER_can_climb;
+    unsigned char CHARACTER_critical;
+    unsigned char CHARACTER_ring_return; // 0-20
+    unsigned char CHARACTER_teamwork; // 0-2
+    unsigned char CHARACTER_song;
+
+    // 0x58
+    unsigned char CHARACTER_voice1;
+    unsigned char CHARACTER_sound1;
+    unsigned char CHARACTER_voice2;
+    unsigned char CHARACTER_sound2;
+
+    //0x5c
+    unsigned char APPEARANCE_pose; // 0-8 strong - ko-budou(old budo)
+    unsigned char APPEARANCE_size; // 0-2 s, m, l
+
+    // 0x3a6de
+    // 0x14 bytes
+    // 0x5e
+    unsigned char ATTRIBUTES_offense[10]; // starts at 3 not 0
+    unsigned char ATTRIBUTES_defense[10];
+
+    //  0x3a6f2
+    //    0x72
+    MOVE MOVES[56]; array of wrestling moves structs. I don't believe this matches the order on the
+
+    // 0xaa?
+    // 0x3a762
+    // 0xe2
+    LOGIC; 0x8e bytes
+
+    APPEARANCE features[6];
+
+    unsigned char unused??[6]
+}
+
+// 0x9 bytes long
+typedef struct APPEARANCE
+{
+
+    unsigned char APPEARANCE_head; 0-0xCB
+    unsigned char APPEARANCE_chest; // this has the size encoded as well, not sure how
+    unsigned char APPEARANCE_waist; // not sure how this is encoded
+    unsigned char APPEARANCE_upper_arm; // not sure how this is encoded
+    unsigned char APPEARANCE_lower_arm; // not sure how this is encoded
+    unsigned char APPEARANCE_shin;
+    unsigned char APPEARANCE_quad;  // not sure how this is encoded
+    unsigned char APPEARANCE_hand; 0-2 bare hand - taping
+    unsigned char APPEARANCE_feet; 0-14 bare-feet- kuma
+}
+
+// how do the 6 appearances correspond to the the outfits we select with a,b,c, x, y, z?
+x = 0
+y = 1
+z = 2
+c = 3
+b = 4
+a = 5
+
