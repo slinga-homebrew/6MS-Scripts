@@ -92,8 +92,12 @@ def editToBytes(parsed_edit):
     for i in parsed_edit["LOGIC"]:
         edit += i.to_bytes(1, 'big')
 
-    # BUGBUG: why is the logic here 2 bytes too big for edits??
-    edit += bytes(2)
+    # not sure what these two bytes are for
+    # the first byte always appears to be zero
+    # the second byte varies possibly related to number
+    # of unlock points available?
+    edit += b'\x00'
+    edit += b'\xFF'
 
     appearance_num = "APPEARANCE_0"
     appearance = parsed_edit[appearance_num]
@@ -293,10 +297,18 @@ def parseEdit(edit):
     parsed_edit["MOVES"] = list(edit[pos:pos+112])
     pos += 112
 
-    parsed_edit["LOGIC"] = list(edit[pos:pos+144])
-    pos += 144
+    parsed_edit["LOGIC"] = list(edit[pos:pos+142])
+    pos += 142
 
-    # BUGBUG: why is this two bytes two many? it should be 8e
+    # not sure what these two bytes are for
+    # the first byte always appears to be zero
+    # the second byte varies possibly related to number
+    # of unlock points available?
+    unknown1 = edit[pos]
+    pos += 1
+
+    unknown2 = edit[pos]
+    pos += 1
 
     appearance_num = "APPEARANCE_0"
     parsed_edit[appearance_num] = {}

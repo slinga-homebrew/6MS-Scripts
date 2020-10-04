@@ -12,6 +12,7 @@ NUM_BUILTIN_WRESTLERS = 160
 BUILTIN_WRESTLER_OFFSET = 0x3a680
 BUILTIN_WRESTLER_SIZE = 0x1AC
 BUILTIN_WRESTLER_NAME_SIZE = 61
+NUM_BUILTIN_ATTIRES = 6
 
 SAVE_INTERNAL_SIZE = 20308
 SAVE_CART_SIZE = 31820
@@ -389,7 +390,7 @@ def convertRGBToList(rgb):
 
     rgb_list = []
 
-    for i in range(0, 68):
+    for i in range(0, len(rgb)):
         if i % 2 != 0:
            continue
 
@@ -1060,5 +1061,103 @@ def areAllElementsZero(someBytes):
 
     return True
 
+# returns the promotion (0-13) based on the wrestler num (0-160)
+def getPromotionNumByWrestlerNum(wrestlerNum):
+
+    if wrestlerNum < 0 or wrestlerNum > 159:
+        print("Invalid wrestlerNum specified!!")
+        sys.exit(-1)
+
+    # default wrestlers
+    if wrestlerNum >= 0 and wrestlerNum <= 23:
+        # New Japan Pro-Wrestling
+        return 0
+    elif wrestlerNum >= 24 and wrestlerNum <= 30:
+        # Heisei Ishingun
+        return 1
+    elif wrestlerNum >= 31 and wrestlerNum <= 50:
+        # All Japan
+        return 2
+    elif wrestlerNum >= 51 and wrestlerNum <= 68:
+        # Japan Independents
+        return 3
+    elif wrestlerNum >= 69 and wrestlerNum <= 79:
+        # WAR
+        return 4
+    elif wrestlerNum >= 80 and wrestlerNum <= 88:
+        # Michinoku Puroresu
+        return 5
+    elif wrestlerNum >= 89 and wrestlerNum <= 107:
+        # America Style Pro Wrestling
+        return 6
+    elif wrestlerNum >= 108 and wrestlerNum <= 114:
+        # UWF International
+        return 7
+    elif wrestlerNum >= 115 and wrestlerNum <= 123:
+        # Rings
+        return 8
+    elif wrestlerNum >= 124 and wrestlerNum <= 124:
+        # Fujiwara Gumi
+        return 9
+    elif wrestlerNum >= 125 and wrestlerNum <= 129:
+        # Pancrase
+        return 10
+    elif wrestlerNum >= 130 and wrestlerNum <= 133:
+        # Lucha Libre
+        return 11
+    elif wrestlerNum >= 134 and wrestlerNum <= 137:
+        # Martial Arts
+        return 12
+
+    # hidden wrestlers
+    if wrestlerNum == 138:
+        return 3
+    elif wrestlerNum == 139:
+        return 0
+    elif wrestlerNum == 140:
+        return 2
+    elif wrestlerNum == 141:
+        return 13
+    elif wrestlerNum == 142:
+        return 11
+    elif wrestlerNum == 143:
+        return 11
+    elif wrestlerNum == 144:
+        return 12
+    elif wrestlerNum == 145:
+        return 3
+    elif wrestlerNum == 146:
+        return 2
+    elif wrestlerNum == 147:
+        return 2
+    elif wrestlerNum == 147:
+        return 2
+    elif wrestlerNum == 148:
+        return 2
+    elif wrestlerNum == 149:
+        return 3
+    elif wrestlerNum == 150:
+        return 6
+    elif wrestlerNum == 151:
+        return 14
+    elif wrestlerNum == 152:
+        return 14
+    elif wrestlerNum == 153:
+        return 14
+    elif wrestlerNum == 154:
+        return 5
+    elif wrestlerNum == 155:
+        return 2
+    elif wrestlerNum == 156:
+        return 0
+    elif wrestlerNum == 157:
+        return 0
+    elif wrestlerNum == 158:
+        return 0
+    elif wrestlerNum == 159:
+        return 0
 
 
+    print("Invalid wrestlerNum specified2!!")
+    sys.exit(-1)
+    return None

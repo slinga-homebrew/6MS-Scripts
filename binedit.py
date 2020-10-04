@@ -3,6 +3,35 @@ import getopt
 import json
 from firepro import *
 
+# function to diff palette lists
+# - must be the same size
+# - must subtract options
+# - absolute value of subtraction
+# - pick the one closest to zero??
+
+def subtractRGBLists(listA, listB):
+
+    if len(listA) != len(listB):
+        print("Lists are different lengths!!")
+        return None
+
+    difference = 0
+
+    for i in range(0, len(listA)):
+
+        diffR = abs(listA[i][0] - listB[i][0])
+        diffG = abs(listA[i][1] - listB[i][1])
+        diffB = abs(listA[i][2] - listB[i][2])
+
+        #print("R: " + str(listA[i][0]) + " " + str(listB[i][0]) + " " + str(diffR))
+        #print("G: " + str(listA[i][1]) + " " + str(listB[i][1]) + " " + str(diffG))
+        #print("B: " + str(listA[i][2]) + " " + str(listB[i][2]) + " " + str(diffB))
+        #print("")
+
+        difference += diffR + diffG + diffB
+
+    return difference
+
 # display usage and exit
 def usage():
     print('binedit.py --input_1st 1ST.BIN --input_fps FPS.SBL --list_builtins')
@@ -16,7 +45,7 @@ def usage():
     sys.exit(0)
 
 # convert JSON wrestler to builtin wrestler struct
-def builtinToBytes(parsed_edit):
+def builtinToBytes(parsed_edit, promotion_number):
 
     #parsed_edit = {}
     pos = 0
@@ -25,7 +54,6 @@ def builtinToBytes(parsed_edit):
 
     edit += parsed_edit["CHARACTER_division"].to_bytes(1, 'big')
     edit += parsed_edit["RENAME_modifier"].to_bytes(1, 'big')
-
 
     last_name = parsed_edit["RENAME_last_name"].encode(encoding='sjis')
     while len(last_name) < 14:
@@ -42,9 +70,6 @@ def builtinToBytes(parsed_edit):
         nickname = nickname + bytes(1)
     edit += nickname
 
-    print("CHARACTER_height: " + str(hex(len(edit))))
-
-
     edit += parsed_edit["CHARACTER_height"].to_bytes(1, 'big')
     edit += parsed_edit["CHARACTER_weight"].to_bytes(1, 'big')
     edit += parsed_edit["CHARACTER_origin"].to_bytes(1, 'big')
@@ -52,15 +77,13 @@ def builtinToBytes(parsed_edit):
     edit += parsed_edit["CHARACTER_month"].to_bytes(1, 'big')
     edit += parsed_edit["CHARACTER_day"].to_bytes(1, 'big')
 
-    # BUGBUG: promotions have to match
-    parsed_edit["CHARACTER_promotion"] = 0
+    # promotions have to match or the wrestler won't appear
+    parsed_edit["CHARACTER_promotion"] = promotion_number
 
     edit += parsed_edit["CHARACTER_promotion"].to_bytes(1, 'big')
     edit += parsed_edit["CHARACTER_fight_style"].to_bytes(1, 'big')
     edit += parsed_edit["CHARACTER_defend_style"].to_bytes(1, 'big')
     edit += parsed_edit["CHARACTER_recover"].to_bytes(1, 'big')
-
-    print("CHARACTER_recover: " + str(hex(len(edit))))
 
     edit += parsed_edit["CHARACTER_recover_bloody"].to_bytes(1, 'big')
     edit += parsed_edit["CHARACTER_breath"].to_bytes(1, 'big')
@@ -84,13 +107,8 @@ def builtinToBytes(parsed_edit):
     edit += parsed_edit["CHARACTER_voice_type2"].to_bytes(1, 'big')
     edit += parsed_edit["CHARACTER_sound2"].to_bytes(1, 'big')
 
-    print("sound2: " + str(hex(len(edit))))
-
     edit += parsed_edit["APPEARANCE_pose"].to_bytes(1, 'big')
     edit += parsed_edit["APPEARANCE_size"].to_bytes(1, 'big')
-
-    print("size: " + str(hex(len(edit))))
-
 
     for i in parsed_edit["ATTRIBUTES_offense"]:
         edit += i.to_bytes(1, 'big')
@@ -98,19 +116,13 @@ def builtinToBytes(parsed_edit):
     for i in parsed_edit["ATTRIBUTES_defense"]:
         edit += i.to_bytes(1, 'big')
 
-    print("defense: " + str(hex(len(edit))))
-
     for i in parsed_edit["MOVES"]:
         edit += i.to_bytes(1, 'big')
-
-    print("moves: " + str(hex(len(edit))))
 
     parsed_edit["LOGIC"] = parsed_edit["LOGIC"][0:0x8e]
 
     for i in parsed_edit["LOGIC"]:
         edit += i.to_bytes(1, 'big')
-
-    print("logic: " + str(hex(len(edit))))
 
     for i in range(0, 6):
 
@@ -121,6 +133,7 @@ def builtinToBytes(parsed_edit):
         appearance_num = "APPEARANCE_" + str(i)
 
         if appearance_num not in parsed_edit:
+            print("Missing " + str(appearance_num) + ", using APPEARANCE_0")
             appearance_num = "APPEARANCE_0"
 
         appearance = parsed_edit[appearance_num]
@@ -144,45 +157,19 @@ def builtinToBytes(parsed_edit):
 
     return edit
 
-def insert_builtin(inBuf, builtinFilename, builtinSlot):
+# insert overwrites a builtin wrestlers palette with another one
+def insert_builtin_palette(fpsBuffer, wrestlerNum, attireNum, palette):
 
-    if builtinSlot < 0 or builtinSlot > 159:
-        print("Invalid builtin_slot!! Must be 0-159")
-        sys.exit(-2)
+    if attireNum < 0 or attireNum > 5:
+        print("Invalid wrestler attire num!!")
+        sys.exit(-3)
 
-    builtinFile = open(builtinFilename, "r")
-    builtinBuf = builtinFile.read()
-    builtinFile.close()
+    if len(palette) != 68:
+        print("Invalid palette length!!")
+        sys.exit(-1)
 
-    builtin_struct = json.loads(builtinBuf)
 
-    builtin = builtinToBytes(builtin_struct)
-
-    pos = BUILTIN_WRESTLER_OFFSET
-
-    outBuf = inBuf[0:BUILTIN_WRESTLER_OFFSET]
-
-    # the actual edit
-    for i in range(0, NUM_BUILTIN_WRESTLERS):
-
-        if i == builtinSlot:
-            # this is the wrestler we are inserting
-            outBuf += builtin
-        else:
-            # not our slot, copy over the existing one
-            outBuf += inBuf[BUILTIN_WRESTLER_OFFSET + (i*BUILTIN_WRESTLER_SIZE):BUILTIN_WRESTLER_OFFSET + (i*BUILTIN_WRESTLER_SIZE) + BUILTIN_WRESTLER_SIZE]
-
-    outBuf += inBuf[BUILTIN_WRESTLER_OFFSET + (NUM_BUILTIN_WRESTLERS*BUILTIN_WRESTLER_SIZE):]
-
-    return outBuf
-
-# queries the builtin wrestlers palette from FPS.SBL
-# wrestlerNum = 0-159 matching the wrestler number from edit a wrestler
-# attireNum = 0-5, where 5 is equal to the 'A' button outfit for the wrestler
-def get_builtin_palette(fpsBuffer, wrestlerNum, attireNum):
-
-    # only valid for wrestlers 0-159
-
+    fpsByteArray = bytearray(fpsBuffer)
 
     # how many RGB entries each pallete component is
     # they should total to 34 entries or 68 bytes
@@ -202,24 +189,174 @@ def get_builtin_palette(fpsBuffer, wrestlerNum, attireNum):
 
     pal = b'';
 
+    tempPalette = palette
+
+    palettePos = 0
+
+    #print("Wrestler: " + str(wrestlerNum) + " " + str(attireNum))
+    for i in range(0, 10):
+
+        tempPalette = palette[palettePos:palettePos + palette_component_sizes[i]*2]
+
+        palettePos += palette_component_sizes[i]*2
+
+        if 0xFF < pallete_component_type[i]:
+
+                limit = 0x200
+                wrestlerIndex_partIndex = pallete_component_index[i]*2 + wrestlerIndex*2 # where to read the value from
+                #wrestlerIndex_partIndex = (fpsBuffer[wrestlerIndex_partIndex]*256) + fpsBuffer[wrestlerIndex_partIndex+1]
+                #print("WrestlerIndex: " + hex(wrestlerIndex_partIndex))
+
+
+        else:
+                limit = 0x100
+
+                wrestlerIndex_partIndex = pallete_component_index[i]*2 + wrestlerIndex
+                #wrestlerIndex_partIndex = fpsBuffer[wrestlerIndex_partIndex]
+                #print("WrestlerIndex: " + hex(wrestlerIndex_partIndex))
+
+        #print("Palette component " + str(i) + " (" + str(palette_component_sizes[i]) + " RGB values)")
+        #print("limit is " + str(limit))
+
+        difference = 0xFFFFFFFF
+        bestIndex = 0
+
+        for j in range(0, limit):
+            src_offset = (j*2*palette_component_sizes[i]) + (pallete_component_offset[i]*2)
+
+            pal = b'';
+
+            for k in range(0, palette_component_sizes[i] * 2):
+
+                    pal += fpsBuffer[FPS_SBL_OFFSET + src_offset + k].to_bytes(1, 'big')
+
+            myList = convertRGBToList(pal)
+            tempList = convertRGBToList(tempPalette)
+
+            tempDifference = subtractRGBLists(myList, tempList)
+            #tempDifference = subtractRGBLists(tempList,myList )
+            if tempDifference < difference:
+
+                difference = tempDifference
+                bestIndex = j
+                #print(hex(j) + " " + str(myList) + " " + str(difference))
+
+            if difference == 0:
+                break
+
+        # found the best matched palette, hopefully it's 0
+        if difference != 0:
+            print("Warning: did not find exact palette match for component " + str(i) + " difference of " + str(difference))
+
+        # we need to insert the index back into fpsBuffer
+        if limit == 0x200:
+            fpsByteArray[FPS_SBL_OFFSET + wrestlerIndex_partIndex] = bestIndex >> 8
+            fpsByteArray[FPS_SBL_OFFSET + wrestlerIndex_partIndex + 1] = bestIndex & 0xFF
+        elif limit == 0x100:
+            fpsByteArray[FPS_SBL_OFFSET + wrestlerIndex_partIndex] = bestIndex
+        else:
+            print("Invalid limit!!")
+            sys.exit(-1)
+
+    return bytes(fpsByteArray)
+
+
+
+
+def insert_builtin(inBuf, fpsBuf, builtinFilename, builtinSlot):
+
+    if builtinSlot < 0 or builtinSlot > 159:
+        print("Invalid builtin_slot!! Must be 0-159")
+        sys.exit(-2)
+
+    builtinFile = open(builtinFilename, "r")
+    builtinBuf = builtinFile.read()
+    builtinFile.close()
+
+    builtin_struct = json.loads(builtinBuf)
+
+    promotionNum = getPromotionNumByWrestlerNum(builtinSlot)
+    builtin = builtinToBytes(builtin_struct, promotionNum)
+
+    pos = BUILTIN_WRESTLER_OFFSET
+
+    outBuf = inBuf[0:BUILTIN_WRESTLER_OFFSET]
+
+    # the actual edit
+    for i in range(0, NUM_BUILTIN_WRESTLERS):
+
+        if i == builtinSlot:
+            # this is the wrestler we are inserting
+            outBuf += builtin
+
+            for j in range(0, NUM_BUILTIN_ATTIRES):
+
+                # an edit wrestler will only have APPEARANCE_0
+                if "APPEARANCE_0" not in builtin_struct:
+                    print("Missing APPEARANCE_0!!")
+                    sys.exit(-1)
+
+                appearance_num = "APPEARANCE_" + str(j)
+
+                if appearance_num not in builtin_struct:
+                    print("Missing " + str(appearance_num) + ", using APPEARANCE_0")
+                    appearance_num = "APPEARANCE_0"
+
+                fpsBuf = insert_builtin_palette(fpsBuf, i, j, builtin_struct[appearance_num]["APPEARANCE_pal"])
+
+        else:
+            # not our slot, copy over the existing one
+            outBuf += inBuf[BUILTIN_WRESTLER_OFFSET + (i*BUILTIN_WRESTLER_SIZE):BUILTIN_WRESTLER_OFFSET + (i*BUILTIN_WRESTLER_SIZE) + BUILTIN_WRESTLER_SIZE]
+
+    outBuf += inBuf[BUILTIN_WRESTLER_OFFSET + (NUM_BUILTIN_WRESTLERS*BUILTIN_WRESTLER_SIZE):]
+
+    return outBuf, fpsBuf
+
+# queries the builtin wrestlers palette from FPS.SBL
+# wrestlerNum = 0-159 matching the wrestler number from edit a wrestler
+# attireNum = 0-5, where 5 is equal to the 'A' button outfit for the wrestler
+def get_builtin_palette(fpsBuffer, wrestlerNum, attireNum):
+
+    if attireNum < 0 or attireNum > 5:
+        print("Invalid wrestler attire num!!")
+        sys.exit(-3)
+
+    # how many RGB entries each pallete component is
+    # they should total to 34 entries or 68 bytes
+    palette_component_sizes = [4, 3, 3, 3, 3, 3, 5, 3, 3, 4]
+
+    # types > 0xff are treated differently
+    pallete_component_type = [0x001c, 0x009c, 0x00d2, 0x0131, 0x00dc, 0x00be, 0x00c5, 0x006b, 0x0077, 0x0062]
+
+    pallete_component_index = [0x0020, 0x0200, 0x03e0, 0x05c0, 0x0980, 0x0b60, 0x0d40, 0x0f20, 0x1100, 0x12e0]
+
+
+    # some offset into another table???
+    pallete_component_offset = [0x14c0, 0x1530, 0x1704, 0x197a, 0x1d0d, 0x1fa1, 0x21db, 0x25b4, 0x26f5, 0x285a, 0x29e2]
+
+    wrestlerIndex = (wrestlerNum * 6) + attireNum
+    #print(hex(wrestlerIndex))
+
+    pal = b'';
+
+    #print("Wrestler: " + str(wrestlerNum) + " " + str(attireNum))
     for i in range(0, 10):
 
         if 0xFF < pallete_component_type[i]:
 
             wrestlerIndex_partIndex = pallete_component_index[i]*2 + wrestlerIndex*2
-            wrestlerIndex_partIndex = (fpsBuffer[wrestlerIndex_partIndex]*256) + fpsBuffer[wrestlerIndex_partIndex+1]
+            wrestlerIndex_partIndex = (fpsBuffer[FPS_SBL_OFFSET + wrestlerIndex_partIndex]*256) + fpsBuffer[FPS_SBL_OFFSET + wrestlerIndex_partIndex+1]
 
         else:
 
             wrestlerIndex_partIndex = pallete_component_index[i]*2 + wrestlerIndex
-            wrestlerIndex_partIndex = fpsBuffer[wrestlerIndex_partIndex]
+            wrestlerIndex_partIndex = fpsBuffer[FPS_SBL_OFFSET + wrestlerIndex_partIndex]
 
         src_offset = (wrestlerIndex_partIndex*2*palette_component_sizes[i]) + (pallete_component_offset[i]*2)
 
-
         for j in range(0, palette_component_sizes[i] * 2):
 
-                pal += fpsBuffer[src_offset + j].to_bytes(1, 'big')
+                pal += fpsBuffer[FPS_SBL_OFFSET + src_offset + j].to_bytes(1, 'big')
 
     if len(pal) != 68:
         print("Error computing wrestler palette!!")
@@ -230,6 +367,9 @@ def get_builtin_palette(fpsBuffer, wrestlerNum, attireNum):
 
 # parse builtin struct to JSON wrestler
 def parse_builtin(wrestlerNum, builtin, fpsBuf):
+
+    #fpsBuf = fpsBuf[:]
+
     wrestler_struct = {}
 
     #
@@ -415,13 +555,11 @@ def parse_builtin(wrestlerNum, builtin, fpsBuf):
 # FPS.SBL contains the wrestler palettes
 def list_builtins(inBuf, inFpsBuf):
 
-    fpsBuf = inFpsBuf[FPS_SBL_OFFSET:]
-
     for i in range(0, NUM_BUILTIN_WRESTLERS):
 
         pos = BUILTIN_WRESTLER_OFFSET + (i * BUILTIN_WRESTLER_SIZE)
 
-        builtin = parse_builtin(i, inBuf[pos:pos + BUILTIN_WRESTLER_SIZE], fpsBuf)
+        builtin = parse_builtin(i, inBuf[pos:pos + BUILTIN_WRESTLER_SIZE], inFpsBuf)
 
         print("Builtin slot: " + str(i))
         print("RENAME_last_name: " + str(builtin["RENAME_last_name"]))
@@ -708,10 +846,14 @@ def main(argv):
 
     if insertBuiltin == True:
 
+        if len(inFpsBuf) == 0:
+            print("--input_fps required!!");
+            usage()
+
         if len(outBinFile) == 0:
             usage()
 
-        inBinBuf = insert_builtin(inBinBuf, inBuiltinFile, builtinSlot)
+        inBinBuf, inFpsBuf = insert_builtin(inBinBuf, inFpsBuf, inBuiltinFile, builtinSlot)
 
     if insertPromotions == True:
 
@@ -732,6 +874,14 @@ def main(argv):
         outFile = open(outBinFile, "wb")
         outFile.write(inBinBuf)
         outFile.close()
+        print("Finished writing " + outBinFile)
+
+    if outFpsFile != "":
+        # write the output file
+        outFile = open(outFpsFile, "wb")
+        outFile.write(inFpsBuf)
+        outFile.close()
+        print("Finished writing " + outFpsFile)
 
     return 0
 
