@@ -6,7 +6,7 @@ from firepro import *
 
 def usage():
     print('saveedit.py --input_save FPS_6MEN._01 --list_edits')
-    print('saveedit.py --input_save FPS_6MEN._01 --output_save FPS_6MEN._01.edited --insert_edit edit_1.json --edit_slot 1')
+    print('saveedit.py --input_save FPS_6MEN._01 --output_save FPS_6MEN._01.edited --insert_edit edit_1.json --edit_slot 1 --appearance_number 0')
     print('')
 
     print('saveedit.py --input_save FPS_6MEN._01 --list_promotions')
@@ -18,7 +18,11 @@ def usage():
 
     sys.exit(1)
 
-def editToBytes(parsed_edit):
+def editToBytes(parsed_edit, appearance_number):
+
+    if appearance_number < 0 or appearance_number > 5:
+        print("Invalid appearance number specified!! Must be 1-5")
+        sys.exit(-1)
 
     #parsed_edit = {}
     pos = 0
@@ -99,7 +103,10 @@ def editToBytes(parsed_edit):
     edit += b'\x00'
     edit += b'\xFF'
 
-    appearance_num = "APPEARANCE_0"
+    # builtins have 0-5 appearances
+    # edits only have one
+    # Allow the user to specify at the command line if there are more than one appearances in the JSON file
+    appearance_num = "APPEARANCE_" + str(appearance_number)
     appearance = parsed_edit[appearance_num]
 
     if "APPEARANCE_pal" in appearance:
@@ -128,9 +135,6 @@ def editToBytes(parsed_edit):
         # BUGBUG: no rgb values, just put 0
         edit += bytes(42)
 
-    #print(len(edit))
-    #sys.exit(0)
-
     edit += appearance["APPEARANCE_head"].to_bytes(1, 'big')
     edit += appearance["APPEARANCE_chest"].to_bytes(1, 'big')
     edit += appearance["APPEARANCE_waist"].to_bytes(1, 'big')
@@ -150,7 +154,7 @@ def editToBytes(parsed_edit):
 
     return edit
 
-def insert_edit(inBuf, editFilename, editSlot, saveType):
+def insert_edit(inBuf, editFilename, editSlot, appearanceNumber, saveType):
 
     if saveType == SAVE_INTERNAL:
         numEdits = NUM_EDITS_SAVE_INTERNAL
@@ -161,13 +165,17 @@ def insert_edit(inBuf, editFilename, editSlot, saveType):
         print("Invalid edit slot number!! Must be 1-" + str(numEdits))
         sys.exit(-1)
 
+    if appearanceNumber < 0 or appearanceNumber > 5:
+        print("Invalid appearance number specified!! Must be 1-5")
+        sys.exit(-1)
+
     editFile = open(editFilename, "r")
     editBuf = editFile.read()
     editFile.close()
 
     edit_struct = json.loads(editBuf)
 
-    edit = editToBytes(edit_struct)
+    edit = editToBytes(edit_struct, appearanceNumber)
 
     # header
     outBuf = inBuf[0:MAGIC_SIZE]
@@ -569,6 +577,7 @@ def main(argv):
     insertEdit = False
     inEditFile = ""
     editSlot = 1
+    appearanceNumber = 0
 
     listPromotions = False
     insertPromotions = False
@@ -579,7 +588,7 @@ def main(argv):
     inWrestlersFile = ""
 
     try:
-      opts, args = getopt.getopt(argv,"hi:o:",["input_save=","output_save=", "list_edits", "list_promotions", "list_wrestlers", "insert_edit=", "insert_promotions=", "insert_wrestlers=", "edit_slot="])
+      opts, args = getopt.getopt(argv,"hi:o:",["input_save=","output_save=", "list_edits", "list_promotions", "list_wrestlers", "insert_edit=", "insert_promotions=", "insert_wrestlers=", "edit_slot=", "appearance_number="])
     except getopt.GetoptError:
       usage()
 
@@ -598,6 +607,8 @@ def main(argv):
             inEditFile = arg
         elif opt in ("--edit_slot"):
             editSlot = int(arg)
+        elif opt in ("--appearance_number"):
+            appearanceNumber = int(arg)
         elif opt in ("--list_promotions"):
             listPromotions = True
         elif opt in ("--insert_promotions"):
@@ -669,7 +680,7 @@ def main(argv):
         if len(outSaveFile) == 0:
             usage()
 
-        inSaveBuf = insert_edit(inSaveBuf, inEditFile, editSlot, saveType)
+        inSaveBuf = insert_edit(inSaveBuf, inEditFile, editSlot, appearanceNumber, saveType)
 
     if insertPromotions == True:
 

@@ -22,10 +22,11 @@ python3 saveedit.py --input_save FPS.6MEN.01 --list_edits
 - dumps all the edits (create-a-wrestlers) to JSON files
 - This JSON file can be edited and reinserted back to the save or inserted directly into the game overwriting an existing wrestler
 
-python3 saveedit.py --input_save FPS_6MEN.01 --output_save FPS_6MEN.01.edited --insert_edit edit_1.json --edit_slot 1
+python3 saveedit.py --input_save FPS_6MEN.01 --output_save FPS_6MEN.01.edited --insert_edit edit_1.json --edit_slot 1 --appearance_number 0
 - inserts a wrestler JSON file into the specified edit slot in the save
 - the JSON file can be either an edit or a builtin wrestler JSON
 - the edited save is specified by --output_save
+- --appearance_number is optional and specifies which of the appearances to use for the wrestler. Builtin wrestlers have 6 appearances (0-5) whereas edits only have one. When copying a builtin to an edit slot you can specify which appearance to use. The numbers correspond to the buttons as follows: z = 0, y = 1, x = 2, b = 3, c = 4, and a = 5.
 
 ### Promotions
 python3 saveedit.py --input_save FPS.6MEN.01 --list_promotions > promotions.txt
@@ -88,7 +89,7 @@ Answer: See [Retroreversing.com](https://www.retroreversing.com/sega-saturn-save
 3) I inserted my wrestler into the game and everything works except for his name is wrong.
 Answer: Fire Pro has a list of wrestler renames in the save game. Your options would be to either 1) delete your save 2) rename the wrestler using the games builtin rename option or 3) use the binedit.py and saveedit.py scripts to dump the wrestler names and insert them into your save.
 
-4) i inserted my wrestler into the game and everything works except his palette is slightly off. What gives?
+4) I inserted my wrestler into the game and everything works except his palette is slightly off. What gives?
 Long story short see notes/builtin_palettes.txt. TL;DR while edits can use all possible combinations of RGB values, the builtins cannot. Use one of the predefined palettes in builtin_palettes.txt and you can avoid this issue.
 
 # Credits
