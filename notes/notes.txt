@@ -1,4 +1,5 @@
-My rough notes on understanding the Fire Pro save game formats as well as how the builtin wresters are stored. The Python scripts should be considered the ground truth. 
+// strings are Shift JIS encoded
+
 
 // 20,308 bytes
 struct FPS_internal_save{
@@ -342,11 +343,18 @@ typedef struct APPEARANCE
     unsigned char APPEARANCE_feet; 0-14 bare-feet- kuma
 }
 
-// how do the 6 appearances correspond to the the outfits we select with a,b,c, x, y, z?
+
+// how do the 6 appearances correspond to the the outfits we select with a,b,c, x, y, z
 x = 0
 y = 1
 z = 2
 c = 3
 b = 4
-a = 5
+a = 5-
+
+
+
+
+
+
 
